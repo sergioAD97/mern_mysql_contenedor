@@ -1,0 +1,111 @@
+version: '3'
+
+services:
+
+  
+  web:
+    image: nginx:alpine
+    networks: [ citagenda ]
+   # container_name: web
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - ./etc/ssl:/certs/:ro
+    ports:
+      - "${HTTP_PORT}:80"
+      - "${HTTPS_PORT}:443"
+   # ports:
+   #   - published: ${HTTP_PORT}
+   #     target: ${HTTP_PORT}
+   #     protocol: tcp
+   #     mode: ingress
+   #   - published: ${HTTPS_PORT}
+   #     target: ${HTTPS_PORT}
+   #     protocol: tcp
+   #     mode: ingress
+    restart: always
+    depends_on:
+      - front
+      - back
+
+
+  front:
+#    image: citagendaf:prod
+    build:
+      dockerfile: Dockerfile
+      context: ./frontend-pwa
+    depends_on: [ back ]
+    env_file:
+    - ".env"
+    ports:
+    - "${FRONT_PORT}:3009"
+
+   # ports:
+   # - published: ${FRONT_PORT}
+   #   target: ${FRONT_PORT}
+     # protocol: tcp
+   #   mode: host
+    networks: [ citagenda ]
+    restart: always
+    #volumes:
+    #  - shared:/app/dist
+
+  back:
+ #   image: citagendab:prod
+    build:
+      dockerfile: Dockerfile
+      context: ./backend
+    depends_on: [ mysql ]
+    ports:
+    - "${BACK_PORT}:3008"
+   # ports:
+   # - published: ${BACK_PORT}
+   #   target: ${BACK_PORT}
+     # protocol: tcp
+   #   mode: host
+   # environment:
+   #   MONGODB_URI: mongodb://database:27017/mean-docker
+    networks: [ citagenda ]
+    restart: always
+  
+  myadmin:
+    image: phpmyadmin/phpmyadmin
+    networks: [ citagenda]
+         #   - docker-network
+       # container_name: myadmin
+    ports:
+      - "${PHPMYADMIN_PORT}:80"
+    environment:
+      - PMA_ARBITRARY=1
+      - PMA_HOST= mysql
+           # - PMA_ABSOLUTE_URI: https://localhost/pma/
+      - UPLOAD_LIMIT= 256M
+    restart: always
+    depends_on:
+      - mysql
+
+  mysql:
+    build: 
+      context: .
+      dockerfile: Dockerfile-mariadb
+      args:
+          MARIADB_VERSION: ${MARIADB_VERSION}
+#         args:  ${MARIADB_VERSION}
+    networks: [ citagenda]
+  #          - docker-network
+  #      container_name: ${MYSQL_HOST}
+    restart: always
+    env_file:
+    - ".env"
+    environment:
+    - MYSQL_DATABASE=${MYSQL_DATABASE}
+    - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+    - MYSQL_USER=${MYSQL_USER}
+    - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    ports:
+    - "127.0.0.1:${MYSQL_PORT}:3306"
+    volumes:
+    - "./mysql-bbdd:/var/lib/mysql"
+
+
+networks:
+  citagenda:
